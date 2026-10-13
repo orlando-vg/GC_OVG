@@ -8,8 +8,9 @@ Ley de la clase, ec. (21), con η̇d = 0 (set-point):
 
     ξ = [u, v, r]ᵀ = J(φ)⁺ Λ (ηd − η),   Λ = diag(λ1, λ2, λ3)
 
-¿Cuánto vale J(φ) para un robot holonómico? ¿Necesita la fase de
-"girar en el sitio" que usaba ir_a_pose en el diferencial?
+Robot holonómico: J(φ) es la matriz de rotación 3x3 (cuadrada e invertible),
+así que J(φ)⁺ = J(φ)⁻¹ = J(φ)ᵀ. No necesita la fase de girar en el sitio:
+se traslada y gira al mismo tiempo.
 """
 import math
 
@@ -18,9 +19,13 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 
-# ===== TODO: puntos de SU variante: (x [m], y [m], θ [rad]) =====
+# ===== Puntos de SU variante: (x [m], y [m], θ [rad]) =====
+
 PUNTOS = [
-    # (x, y, theta),
+    (1.0, 1.0, math.pi / 4),
+    (2.0, 0.0, 0.0),
+    (1.0, -1.0, -math.pi / 4),
+    (0.0, 0.0, 0.0),
 ]
 
 L1, L2, L3 = 1.0, 1.0, 1.5     # Λ = diag(λ1, λ2, λ3)
@@ -42,11 +47,33 @@ def ley_control(pose, meta):
     pose = (x, y, φ)      meta = (xd, yd, θd)
     Devuelve (u, v, r, alcanzado)
     """
-    # TODO 1: errores de posición (en odom) y de orientación (envuelto)
-    # TODO 2: ¿alcanzado? (TOL_POS y TOL_ANG) -> devolver 0, 0, 0, True
-    # TODO 3: ξ = J(φ)⁺ Λ e
-    # TODO 4: saturar la NORMA de (u, v) a V_MAX conservando la dirección, y |r| a R_MAX
-    raise NotImplementedError
+    x, y, phi = pose
+    xd, yd, thd = meta
+
+    # 1: errores en odom y error angular envuelto a [-π, π]
+    ex = xd - x
+    ey = yd - y
+    eth = envolver(thd - phi)
+
+    # 2: ¿alcanzado?
+    if math.hypot(ex, ey) < TOL_POS and abs(eth) < TOL_ANG:
+        return 0.0, 0.0, 0.0, True
+
+    # 3: ξ = J(φ)⁺ Λ e, con J(φ)⁺ = J(φ)ᵀ
+    c, s = math.cos(phi), math.sin(phi)
+    ax, ay, ath = L1 * ex, L2 * ey, L3 * eth
+    u = c * ax + s * ay
+    v = -s * ax + c * ay
+    r = ath
+
+    # 4: saturar la norma de (u, v) conservando la dirección, y |r|
+    norma = math.hypot(u, v)
+    if norma > V_MAX:
+        u *= V_MAX / norma
+        v *= V_MAX / norma
+    r = max(-R_MAX, min(R_MAX, r))
+
+    return u, v, r, False
 
 
 class IrAPuntos(Node):
@@ -79,6 +106,10 @@ class IrAPuntos(Node):
                     f'Punto {self.i + 1}/{len(self.puntos)} alcanzado: '
                     f'x={x:.3f}, y={y:.3f}, θ={math.degrees(phi):.1f}°')
                 self.i += 1
+                if self.i < len(self.puntos):
+                    self.get_logger().info(f'Siguiente punto: {self.puntos[self.i]}')
+                else:
+                    self.get_logger().info('Recorrido completo.')
             cmd.linear.x, cmd.linear.y, cmd.angular.z = u, v, r
         self.pub.publish(cmd)
 
