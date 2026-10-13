@@ -57,18 +57,34 @@ def generate_launch_description():
         package='ros_gz_bridge', executable='parameter_bridge',
         arguments=[
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-            # TODO (Parte 3): motores /vel_rueda_del_izq, /vel_rueda_del_der,
-            #                 /vel_rueda_tra_izq, /vel_rueda_tra_der  (std_msgs/Float64)
-            # TODO: encoders  /world/pista/model/mi_robot/joint_state
-            # TODO: LiDAR     /scan
-            # TODO: cámara    /camara/image, /camara/depth_image, /camara/points, /camara/camera_info
+            # Motores (ROS -> Gazebo)
+            '/vel_rueda_del_izq@std_msgs/msg/Float64]gz.msgs.Double',
+            '/vel_rueda_del_der@std_msgs/msg/Float64]gz.msgs.Double',
+            '/vel_rueda_tra_izq@std_msgs/msg/Float64]gz.msgs.Double',
+            '/vel_rueda_tra_der@std_msgs/msg/Float64]gz.msgs.Double',
+            # Encoders
+            '/world/pista/model/mi_robot/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model',
+            # LiDAR
+            '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
+            # Cámara
+            '/camara/image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camara/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camara/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+            '/camara/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
         ],
-        # TODO: remapping del joint_state de Gazebo a /joint_states
+        remappings=[
+            ('/world/pista/model/mi_robot/joint_state', '/joint_states'),
+        ],
         parameters=[{'use_sim_time': True}],
         output='screen',
     )
 
-    # TODO (Parte 3): nodo 'cinematica' del paquete mi_mecanum_control, con use_sim_time
+    cinematica = Node(
+        package='mi_mecanum_control', executable='cinematica',
+        name='cinematica',
+        parameters=[{'use_sim_time': True}],
+        output='screen',
+    )
 
     rviz_node = Node(
         package='rviz2', executable='rviz2', arguments=['-d', rviz_file],
@@ -77,5 +93,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('rviz', default_value='true'),
-        gazebo, robot_state_publisher, spawn, bridge, rviz_node,   # TODO: agregar cinematica
+        gazebo, robot_state_publisher, spawn, bridge, cinematica, rviz_node,
     ])
