@@ -1,0 +1,19 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Reference Frame: <Fixed Frame>
+  # TODO (Parte 3): agregar RobotModel, TF, LaserScan, Image (RGB y profundidad),
+  #   PointCloud2 y Odometry desde RViz y guardar aquí (File > Save Config As)
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Value: true
